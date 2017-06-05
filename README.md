@@ -36,8 +36,7 @@ For the C++ part, just run `make` in the source directory
 and it should build an executable named `hdbclient.exe`
 in a directory whose name starts with 'object'.
 
-For the Python part to work you'll need to install the Dropbox Python SDK
-(which requires installing setuptools).
+For the Python part to work you'll need to install the Dropbox Python SDK.  First get the Python package manger "pip": download https://bootstrap.pypa.io/get-pip.py and run "python get-ip.py" to install it.  Then do "pip install dropbox"
 
 # Dropbox Authorization
 
@@ -45,6 +44,8 @@ Once you have the Dropbox Python SDK installed,
 you'll need to authorize this Dropbox client to access your Dropbox.
 It is setup to only have access to its own Apps folder (python_cli),
 so none of your existing files are in danger.
+
+Note that the code has a dropbox developer key that only works for the first 50 users.  If this program gets popular enough, it may be worthwhile registering it with Dropbox, but that means creating an icon, writing up docs, doing a web page, etc.
 
 ##To give the scripts the proper credentials for Dropbox:
 
