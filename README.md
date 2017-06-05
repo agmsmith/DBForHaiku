@@ -7,7 +7,7 @@ The most irritating thing about really trying a new operating system is not havi
 Without your files, you can't do work.
 I am writing a Dropbox client for Haiku so that I'll be able to do more work from Haiku.
 
-##Current Behavior.
+## Current Behavior.
 
 This program uses the Dropbox API with permissions to only access it's own App folder.
 This makes it safe because it cannot mess up anything in your main Dropbox;
@@ -47,7 +47,7 @@ so none of your existing files are in danger.
 
 Note that the code has a dropbox developer key that only works for the first 50 users.  If this program gets popular enough, it may be worthwhile registering it with Dropbox, but that means creating an icon, writing up docs, doing a web page, etc.
 
-##To give the scripts the proper credentials for Dropbox:
+## To give the scripts the proper credentials for Dropbox:
 
 1. In the terminal, run: `python db_login1.py`
 2. Copy-paste that link into Web+ and approve the access.
