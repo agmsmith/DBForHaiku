@@ -51,7 +51,7 @@ Then do "pip install dropbox"
 
 Once you have the Dropbox Python SDK installed, you'll need to authorize this
 Dropbox client to access your Dropbox.  It is setup to only have access to its
-own Apps folder (python_cli), so none of your existing files are in danger.
+own Apps folder (DBForHaiku), so none of your existing files are in danger.
 
 Note that the code has a dropbox developer key that only works for the first 50
 users.  If this program gets popular enough, it may be worthwhile registering
