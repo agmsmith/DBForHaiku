@@ -10,8 +10,8 @@ from dropbox import client, rest, session
 
 # XXX Fill in your consumer key and secret below
 # You can find these at http://www.dropbox.com/developers/apps
-APP_KEY = 'lgnddohfs08bpm5'
-APP_SECRET = 'h95t3xk2bmbapn9'
+APP_KEY = '6a7ixdngv5ujexe'
+APP_SECRET = '8abyxqjc7g4o44d'
 ACCESS_TYPE = 'app_folder'  # should be 'dropbox' or 'app_folder' as configured for your app
 
 def command(login_required=True):
