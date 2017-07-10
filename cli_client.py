@@ -1,9 +1,8 @@
 import cmd
 import locale
 import os
-import pprint
+#import pprint
 import shlex
-import pickle
 import sys
 
 from dropbox import DropboxOAuth2FlowNoRedirect
@@ -11,18 +10,28 @@ from dropbox import dropbox
 
 # XXX Fill in the application's key and secret below.
 # You can find (or generate) these at http://www.dropbox.com/developers/apps
+# After about 50 users, it becomes full and you need to generate another key or
+# need to make the project official (add icons, docs at Dropbox).
 APP_KEY = '6a7ixdngv5ujexe'
 APP_SECRET = '8abyxqjc7g4o44d'
-ACCESS_TYPE = 'app_folder'  # should be 'dropbox' or 'app_folder' as configured for your app
+
+ACCESS_TYPE = 'app_folder'
+# should be 'dropbox' or 'app_folder' as configured for your app
+
+# General error message display is to stderr, since the output from this
+# program may be piped into another program.  Use stdout only for actual
+# output, headers and status info go to stderr, status messages (non-errors)
+# surrounded by [].
 
 def wrap_dropbox_errors(func):
-    """a decorator for handling Dropbox exceptions"""
+    """A decorator that inserts a wrapper function for handling Dropbox exceptions."""
     def wrapper(self, *args):
+        """A wrapper function for handling Dropbox exceptions."""
         try:
             return func(self, *args)
         except Exception as e:
-            print e
-            print >> sys.stderr, "[Exception while calling Dropbox API, quitting]"
+            print >> sys.stderr, e
+            print >> sys.stderr, "Exception while calling Dropbox API, quitting."
             quit(1)
     wrapper.__doc__ = func.__doc__
     return wrapper
@@ -30,18 +39,21 @@ def wrap_dropbox_errors(func):
 class DropboxTerm(cmd.Cmd):
     TOKEN_FILE = "token_store.txt"
 
-    def __init__(self, app_key, app_secret):
+    def __init__(self):
         cmd.Cmd.__init__(self)
 
         # First try loading the saved DropBox authorisation token.
         stored_token = ""
         try:
-            f = open(self.TOKEN_FILE, 'r')
-            stored_token = f.read()
-            f.close()
-            print >> sys.stderr, "[using previously saved Dropbox access token]"
-        except IOError:
-            print >> sys.stderr, "[failed to read Dropbox access token from file %s]" % self.TOKEN_FILE
+            with open(self.TOKEN_FILE, 'r') as f:
+                stored_token = f.read()
+            print >> sys.stderr, "[using previously saved Dropbox access " \
+                "token from \"" + self.TOKEN_FILE + "\"]"
+        except IOError as e:
+            print >> sys.stderr, "Failed to read Dropbox access token from " \
+              "file"
+            print >> sys.stderr, e
+            print >> sys.stderr, "Will prompt the user for a new token..."
             stored_token = ""
 
         if len(stored_token) <= 0:
@@ -57,24 +69,27 @@ class DropboxTerm(cmd.Cmd):
                 oauth_result = auth_flow.finish(auth_code)
                 stored_token = oauth_result.access_token
             except Exception as e:
-                print('Error: %s' % (e,))
+                print >> sys.stderr, "Authorisation Error:", e
                 raise
 
             # Got a new token, save it permanently.
-            f = open(self.TOKEN_FILE, 'w')
-            f.write(stored_token)
-            f.close()
-            print >> sys.stderr, "[Dropbox access token saved for later runs]"
+            with open(self.TOKEN_FILE, 'w') as f:
+                f.write(stored_token)
+            print >> sys.stderr, "[Dropbox access token saved for later runs "\
+              "in file \"" + self.TOKEN_FILE + "\"]"
 
         self.dbx = dropbox.Dropbox(stored_token, user_agent="DBForHaiku/1.0")
         self.current_path = ""
         self.prompt = "Dropbox> "
 
     @wrap_dropbox_errors
-    def do_ls(self):
-        """list files in current remote directory"""
-        resp = self.dbx.files_list_folder(self.current_path)
-        print 'Contents of directory "' + self.current_path + '" are:'
+    def do_ls(self, arglist): # cmd passes us a list of argment strings.
+        """list files in current remote directory, with optional absolute path argument"""
+        path = self.current_path
+        if len(arglist) > 0:
+            path = arglist[0]
+        print >> sys.stderr, '[Contents of directory "' + path + '" are:]'
+        resp = self.dbx.files_list_folder(path)
         while True:
             for metadata in resp.entries:
                 print metadata.name
@@ -85,12 +100,19 @@ class DropboxTerm(cmd.Cmd):
             resp = self.dbx.files_list_folder_continue(resp.cursor)
 
     @wrap_dropbox_errors
-    def do_cd(self, path):
-        """change current working directory"""
-        if path == "..":
-            self.current_path = "/".join(self.current_path.split("/")[0:-1])
+    def do_cd(self, arglist):
+        """change current working directory to a specified path, root if none"""
+        if len(arglist) <= 0:
+            self.current_path = "" # Root is empty string, not "/".
         else:
-            self.current_path += "/" + path
+            path = arglist[0]
+            if path == "..":
+                self.current_path = \
+                    "/".join(self.current_path.split("/")[0:-1])
+            else:
+                self.current_path += "/" + path
+        print >> sys.stderr, "[Current directory now is \"" + \
+            self.current_path + "\"]"
 
     @wrap_dropbox_errors
     def do_cat(self, path):
@@ -136,12 +158,12 @@ class DropboxTerm(cmd.Cmd):
         return response['cursor']
 
     @wrap_dropbox_errors
-    def do_account_info(self):
+    def do_account_info(self, *args):
         """display account information"""
         f = self.dropbox.account_info()
         pprint.PrettyPrinter(indent=2).pprint(f)
 
-    def do_exit(self):
+    def do_exit(self, *args):
         """exit"""
         return True
 
@@ -197,9 +219,9 @@ class DropboxTerm(cmd.Cmd):
         for r in results:
             self.stdout.write("%s\n" % r['path'])
 
-    def do_help(self):
-        # Find every "do_" attribute with a non-empty docstring and print
-        # out the docstring.
+    def do_help(self, topic):
+        # Replace the default cmd.do_help with a listing of every docsctring
+        # from every "do_" attribute.
         all_names = dir(self)
         cmd_names = []
         for name in all_names:
@@ -220,7 +242,11 @@ class DropboxTerm(cmd.Cmd):
         return True
 
     def parseline(self, line):
-        parts = shlex.split(line)
+        try:
+            parts = shlex.split(line)
+        except Exception as e:
+            print >> sys.stderr, e
+            parts = []
         if len(parts) == 0:
             return None, None, line
         else:
@@ -228,11 +254,9 @@ class DropboxTerm(cmd.Cmd):
 
 
 def main():
-    if APP_KEY == '' or APP_SECRET == '':
-        exit("You need to set your APP_KEY and APP_SECRET in the code!")
-    term = DropboxTerm(APP_KEY, APP_SECRET)
-    #term.cmdloop()
-    term.do_ls()
+    term = DropboxTerm()
+    term.do_ls([])
+    term.cmdloop()
 
 if __name__ == '__main__':
     main()
