@@ -9,9 +9,9 @@ irritating thing about really trying a new operating system is not having your
 files.  Without your files, you can't do work.  I am writing a Dropbox client
 for Haiku so that I'll be able to do more work from Haiku.
 
-The updater (Alex Smith, agmsmith on GitHub) says in 2017: I'm updating this
-since Dropbox would be useful for sharing audio files between Internet radio
-stations, as an alternative to FTP or HTTP.
+The updater (Alexander G. M. Smith, agmsmith on GitHub) says in 2017: I'm
+updating this since Dropbox would be useful for sharing audio files between
+Internet radio stations, as an alternative to FTP or HTTP.
 
 ## Current Behavior.
 
@@ -43,7 +43,7 @@ an executable named `hdbclient.exe` in a directory whose name starts with
 'object'.
 
 For the Python part to work you'll need to install the Dropbox Python SDK.
-First get the Python package manger "pip", download
+First get the Python package manger "pip" for Python version 2, download
 https://bootstrap.pypa.io/get-pip.py and run "python get-ip.py" to install it.
 Then do "pip install dropbox"
 
@@ -56,17 +56,19 @@ own Apps folder (DBForHaiku), so none of your existing files are in danger.
 Note that the code has a dropbox developer key that only works for the first 50
 users.  If this program gets popular enough, it may be worthwhile registering
 it with Dropbox, but that means creating an icon, writing up docs, doing a web
-page, etc.
+page, etc.  You can make your own developer key if the built in one is full.
 
 ## To give the scripts the proper credentials for Dropbox:
 
-1. In the terminal, run: `python db_login1.py`
+1. In the terminal, run: `python cli_client.py`
 2. Copy-paste that link into Web+ and approve the access.
-3. Run `python db_login2.py`.
+3. Paste the result back into the python session and hit Enter.
+4. If it works you'll see a file listing, after which you can type `exit`.
 
 You should only have to do this once.  The authorization token is written to a
 local file, and then the Python scripts read it in every time they want to talk
-to Dropbox.
+to Dropbox.  If things go wrong, delete the old token_store.txt file and try
+again.
 
 Obviously, this should at some point be a real part of the client.  However,
 you only need to do it once during setup, so it's not yet a priority.

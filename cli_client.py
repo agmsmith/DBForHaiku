@@ -80,7 +80,7 @@ class DropboxTerm(cmd.Cmd):
 
         self.dbx = dropbox.Dropbox(stored_token, user_agent="DBForHaiku/1.0")
         self.current_path = ""
-        self.prompt = "Dropbox> "
+        self.prompt = "DBForHaiku> "
 
     @wrap_dropbox_errors
     def do_ls(self, arglist): # cmd passes us a list of argment strings.
