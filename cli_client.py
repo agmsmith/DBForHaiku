@@ -1,7 +1,6 @@
 import cmd
 import locale
 import os
-#import pprint
 import shlex
 import sys
 
@@ -26,13 +25,15 @@ ACCESS_TYPE = 'app_folder'
 def wrap_dropbox_errors(func):
     """A decorator that inserts a wrapper function for handling Dropbox exceptions."""
     def wrapper(self, *args):
-        """A wrapper function for handling Dropbox exceptions."""
+        """A wrapper function for handling Dropbox exceptions.
+        Will return True if something goes wrong, usually False if success."""
         try:
             return func(self, *args)
         except Exception as e:
             print >> sys.stderr, e
-            print >> sys.stderr, "Exception while calling Dropbox API, quitting."
-            quit(1)
+            print >> sys.stderr, \
+                "Something went wrong while using the Dropbox API."
+            return True # Stop the command.
     wrapper.__doc__ = func.__doc__
     return wrapper
 
@@ -50,8 +51,7 @@ class DropboxTerm(cmd.Cmd):
             print >> sys.stderr, "[using previously saved Dropbox access " \
                 "token from \"" + self.TOKEN_FILE + "\"]"
         except IOError as e:
-            print >> sys.stderr, "Failed to read Dropbox access token from " \
-              "file"
+            print >> sys.stderr, "Failed to read saved Dropbox access token."
             print >> sys.stderr, e
             print >> sys.stderr, "Will prompt the user for a new token..."
             stored_token = ""
@@ -70,6 +70,8 @@ class DropboxTerm(cmd.Cmd):
                 stored_token = oauth_result.access_token
             except Exception as e:
                 print >> sys.stderr, "Authorisation Error:", e
+                print >> sys.stderr, "Maybe delete file \"" + self.TOKEN_FILE + \
+                    "\" and try again?"
                 raise
 
             # Got a new token, save it permanently.
@@ -98,6 +100,7 @@ class DropboxTerm(cmd.Cmd):
             # More listings available, read the next batch.
             print >> sys.stderr, "[Lots of listings, getting next batch]"
             resp = self.dbx.files_list_folder_continue(resp.cursor)
+        return False
 
     @wrap_dropbox_errors
     def do_cd(self, arglist):
@@ -113,13 +116,7 @@ class DropboxTerm(cmd.Cmd):
                 self.current_path += "/" + path
         print >> sys.stderr, "[Current directory now is \"" + \
             self.current_path + "\"]"
-
-    @wrap_dropbox_errors
-    def do_cat(self, path):
-        """display the contents of a file"""
-        f, metadata = self.dropbox.get_file_and_metadata(self.current_path + "/" + path)
-        self.stdout.write(f.read())
-        self.stdout.write("\n")
+        return False
 
     @wrap_dropbox_errors
     def do_mkdir(self, path):
@@ -158,44 +155,37 @@ class DropboxTerm(cmd.Cmd):
         return response['cursor']
 
     @wrap_dropbox_errors
-    def do_account_info(self, *args):
+    def do_account_info(self, arglist):
         """display account information"""
-        f = self.dropbox.account_info()
-        pprint.PrettyPrinter(indent=2).pprint(f)
+        f = self.dbx.users_get_current_account()
+        print f
+        return False
 
-    def do_exit(self, *args):
+    def do_exit(self, arglist):
         """exit"""
         return True
 
     @wrap_dropbox_errors
-    def do_get(self, from_path, to_path):
+    def do_get(self, arglist):
         """
         Copy file from Dropbox to local file and print out out the metadata.
 
         Examples:
-        Dropbox> get file.txt ~/dropbox-file.txt
+        DBForHaiku> get file.txt ~/dropbox-file.txt
         """
-        to_file = open(os.path.expanduser(to_path), "wb")
-
-        f, metadata = self.dropbox.get_file_and_metadata(self.current_path + "/" + from_path)
-        print 'Metadata:', metadata
-        to_file.write(f.read())
-
-    @wrap_dropbox_errors
-    def do_thumbnail(self, from_path, to_path, size='large', format='JPEG'):
-        """
-        Copy an image file's thumbnail to a local file and print out the
-        file's metadata.
-
-        Examples:
-        Dropbox> thumbnail file.txt ~/dropbox-file.txt medium PNG
-        """
-        to_file = open(os.path.expanduser(to_path), "wb")
-
-        f, metadata = self.dropbox.thumbnail_and_metadata(
-                self.current_path + "/" + from_path, size, format)
-        print 'Metadata:', metadata
-        to_file.write(f.read())
+        if len(arglist) < 2:
+            print >> sys.stderr, "Get needs 2 arguments: the Dropbox from " \
+                "file path, the local destination path."
+            return True # Something went wrong.
+        from_path = arglist[0]
+        to_path = arglist[1]
+        to_file = os.path.expanduser(to_path)
+        print >> sys.stderr, "[Get: download file from \"" + from_path + \
+            "\" to \"" + to_file + "\"]"
+        metadata = self.dbx.files_download_to_file(
+            to_file, self.current_path + "/" + from_path)
+        print >> sys.stderr, "[Downloaded", metadata.size, "bytes]"
+        return False
 
     @wrap_dropbox_errors
     def do_put(self, from_path, to_path, rev):
@@ -203,7 +193,7 @@ class DropboxTerm(cmd.Cmd):
         Copy local file to Dropbox
 
         Examples:
-        Dropbox> put ~/test.txt dropbox-copy-test.txt
+        DBForHaiku> put ~/test.txt dropbox-copy-test.txt
         """
         from_file = open(os.path.expanduser(from_path), "rb")
 
@@ -211,6 +201,10 @@ class DropboxTerm(cmd.Cmd):
             return self.dropbox.put_file(self.current_path + "/" + to_path, from_file)
         else:
             return self.dropbox.put_file(self.current_path + "/" + to_path, from_file, parent_rev=rev)
+
+    def do_quit(self, arglist):
+        """quit"""
+        return True
 
     @wrap_dropbox_errors
     def do_search(self, string):

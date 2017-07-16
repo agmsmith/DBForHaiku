@@ -1,16 +1,9 @@
 import sys
-from cli_client import APP_KEY, APP_SECRET, DropboxTerm
+from cli_client import DropboxTerm
 
-def main(src,dest):
-    if APP_KEY == '' or APP_SECRET == '':
-        exit("You need to set your APP_KEY and APP_SECRET!")
-    term = DropboxTerm(APP_KEY, APP_SECRET)
-
-    term.do_get(src,dest)
+def main(*args):
+    term = DropboxTerm()
+    return term.do_get(*args)
 
 if __name__ == '__main__':
-    #get cmdline args...
-    if len(sys.argv) != 3:
-        print "usage: python db_get.py <remote src> <local dest>"
-    else:
-      main(sys.argv[1],sys.argv[2])
+    quit (main(sys.argv[1:]))
