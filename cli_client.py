@@ -1,4 +1,5 @@
 import cmd
+import haikuglue.storage
 import locale
 import os
 import shlex
@@ -32,13 +33,14 @@ def wrap_dropbox_errors(func):
         except Exception as e:
             print >> sys.stderr, e
             print >> sys.stderr, \
-                "Something went wrong while using the Dropbox API."
+                "Something went wrong while using the Dropbox API, exiting."
             return True # Stop the command.
     wrapper.__doc__ = func.__doc__
     return wrapper
 
 class DropboxTerm(cmd.Cmd):
     TOKEN_FILE = "token_store.txt"
+    VERSION_ATTRIBUTE_NAME = "DropBoxVersion"
 
     def __init__(self):
         cmd.Cmd.__init__(self)
@@ -64,7 +66,7 @@ class DropboxTerm(cmd.Cmd):
             print "2. Click \"Allow\" (you might have to log in first)."
             print "3. Copy the authorisation code."
             auth_code = raw_input("Enter the authorization code here: ").strip()
-            
+
             try:
                 oauth_result = auth_flow.finish(auth_code)
                 stored_token = oauth_result.access_token
@@ -167,30 +169,45 @@ class DropboxTerm(cmd.Cmd):
 
     @wrap_dropbox_errors
     def do_get(self, arglist):
-        """
-        Copy file from Dropbox to local file and print out out the metadata.
+        """Copy (download) a file from Dropbox to a local file.
+
+        It takes 2 or 3 arguments: the DropBox file path, the local file
+        path and an optional DropBox version of the file.
+
+        If successful, it returns the version string of the downloaded file.
 
         Examples:
-        DBForHaiku> get file.txt ~/dropbox-file.txt
-        """
+        DBForHaiku> get file.txt ~/local-file.txt 6589781a4
+        [using previously saved Dropbox access token from "token_store.txt"]
+        [Get: download file from "file.txt" to "/boot/home/local-file.txt", version 6589781a4 ]
+        [Downloaded 76 bytes]
+        6589781a4"""
         if len(arglist) < 2:
-            print >> sys.stderr, "Get needs 2 arguments: the Dropbox from " \
-                "file path, the local destination path."
+            print >> sys.stderr, "Get needs 2 or 3 arguments: the Dropbox from " \
+                "file path, the local destination path, the revision."
             return True # Something went wrong.
         from_path = arglist[0]
         to_path = arglist[1]
         to_file = os.path.expanduser(to_path)
+        if len(arglist) >= 3:
+            version = arglist[2]
+        else:
+            version = None
         print >> sys.stderr, "[Get: download file from \"" + from_path + \
-            "\" to \"" + to_file + "\"]"
+            "\" to \"" + to_file + "\", version", version, "]"
         metadata = self.dbx.files_download_to_file(
-            to_file, self.current_path + "/" + from_path)
+            to_file, self.current_path + "/" + from_path, version)
+        # TODO: Set file date from metadata.
         print >> sys.stderr, "[Downloaded", metadata.size, "bytes]"
+        haikuglue.storage.write_attr(to_file, self.VERSION_ATTRIBUTE_NAME,
+            haikuglue.storage.types['B_STRING_TYPE'], metadata.rev)
+        print metadata.rev
         return False
 
     @wrap_dropbox_errors
     def do_put(self, from_path, to_path, rev):
         """
-        Copy local file to Dropbox
+        Copy local file to Dropbox; uploading it.
 
         Examples:
         DBForHaiku> put ~/test.txt dropbox-copy-test.txt
