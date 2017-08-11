@@ -7,6 +7,7 @@ import sys
 
 from dropbox import DropboxOAuth2FlowNoRedirect
 from dropbox import dropbox
+import dateutil.tz
 
 # XXX Fill in the application's key and secret below.
 # You can find (or generate) these at http://www.dropbox.com/developers/apps
@@ -39,7 +40,7 @@ def wrap_dropbox_errors(func):
     return wrapper
 
 class DropboxTerm(cmd.Cmd):
-    TOKEN_FILE = "token_store.txt"
+    TOKEN_FILE = "login_token_store.txt"
     VERSION_ATTRIBUTE_NAME = "DropBoxVersion"
 
     def __init__(self):
@@ -96,7 +97,22 @@ class DropboxTerm(cmd.Cmd):
         resp = self.dbx.files_list_folder(path)
         while True:
             for metadata in resp.entries:
-                print metadata.name
+                if 'size' in dir(metadata):
+                    # We have a file, not a directory, has size and a date
+                    # stamp.  Convert the time to the local time zone.  By
+                    # default (no time zone specified) it is in universal
+                    # coordinated time (UTC).
+                    if metadata.client_modified.tzinfo == None:
+                        metadata.client_modified = \
+                            metadata.client_modified.replace(tzinfo =
+                            dateutil.tz.tzutc())
+                    # Convert to local time for printing, use UTC internally.
+                    localdate = metadata.client_modified.astimezone(
+                        dateutil.tz.tzlocal())
+                    print metadata.name, '<date', localdate, 'size', \
+                        metadata.size, 'bytes>'
+                else:
+                    print metadata.name, '<directory>'
             if not resp.has_more:
                 break
             # More listings available, read the next batch.
